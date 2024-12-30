@@ -1,0 +1,910 @@
+create mvc project .net9 by the name of BestStoreMVC
+https://www.youtube.com/watch?v=SfWuOFEatYc
+-------
+ create db connection
+
+1 - in the left narrow column click ServerEplorer
+2- right click on ("Data Connections")  then / add connection / choose Microsofet Sql server / Continue
+3- new popup will appear / for server name we use "."
+4- for db name we use "BestStoreDb"
+5- click on advance button in the right bottom corner : then make it "Trust server certificate: true"
+6- OK / OK
+
+now we can see a new data connecton in the left column appeared;
+
+now we copy connection strings
+
+right click on a new connection that we built / properties / in the right bottom section the related info appeare
+
+and there we can copy the connection string
+"Data Source=.;Initial Catalog=BestStoreDb;Integrated Security=True;Encrypt=False;Trust Server Certificate=True"
+
+-------------------
+
+2- appsetting.json 
+here we add our string connection
+
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+
+  "ConnectionStrings": {
+    "DefaultConnection": "Data Source=.;Initial Catalog=BestStoreDb;Integrated Security=True;Encrypt=False;Trust Server Certificate=True"
+  }
+}
+-------------------------------------------------------------
+
+3- install required packages
+right click on root / Manage NuGet packages / browse
+1- Microsoft.EntityFrameworkCore.SqlServer 
+2- Microsoft.EntityFrameworkCore.Tools
+
+-----------------------------------------------------
+
+4- create ApplicationDbContext
+
+root / add / newFolder/ name "Services" / right click add / class / name "ApplicationDbContext"
+
+using Microsoft.EntityFrameworkCore;
+
+namespace BestStoreMVC.Services
+{
+    public class ApplicationDbContext: DbContext
+    {
+        public ApplicationDbContext(DbContextOptions options) : base(options)           
+        {
+            
+        }
+    }
+}
+-----------------------------------------------------------
+
+5- goto program.cs to add out dbContext there:
+
+add it ;
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    options.UseSqlServer(connectionString);
+});
+
+the full code is :
+using BestStoreMVC.Services;
+using Microsoft.EntityFrameworkCore;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+builder.Services.AddControllersWithViews();
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    options.UseSqlServer(connectionString);
+});
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Home/Error");
+    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
+app.UseRouting();
+
+app.UseAuthorization();
+
+app.MapStaticAssets();
+
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}")
+    .WithStaticAssets();
+
+
+app.Run();
+-------------------------------------------------------------------------
+
+7- add model
+ root/Models/right click / add / class/ name "Product"
+
+using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
+
+namespace BestStoreMVC.Models
+{
+    public class Product
+    {
+        public int Id { get; set; }
+        [MaxLength(100)]
+        public string Name { get; set; } = "";
+        [MaxLength(100)]
+        public string Brand { get; set; } = "";
+        [MaxLength(100)]
+        public string Category { get; set; } = "";
+        [Precision(16 , 2)]
+        public decimal Price { get; set; }
+        public string Description { get; set; } = "";
+        [MaxLength(100)]
+        public string ImageFileName { get; set; } = "";
+        public DateTime  CreateAt { get; set; }
+
+    }
+}
+
+
+-----------------
+
+8 - go back to ApplicationDbContext and add our model there
+
+using BestStoreMVC.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace BestStoreMVC.Services
+{
+    public class ApplicationDbContext: DbContext
+    {
+        public ApplicationDbContext(DbContextOptions options) : base(options)           
+        {
+            
+        }
+
+         public DbSet<Product> Products { get; set; }
+    }
+}
+
+-----------------------------------------
+
+9-
+PM> Add-Migration "Initial migration"
+PM> Update-Database
+-------------------------
+
+10- now goto narrow column in right , click ServerExplore/right lick on connection that we built and 
+Refresh it , in subfolders if we open the tables we can see Products table
+
+now we can right click on Products table and select "Show Table Data"
+then we can see our data , but now we have no data yet and table is empty
+
+12':50"  now if we need initial data we can right click on our connection and select "new query"
+there we can add initial data to our table
+--------------------------------------
+
+11- now we need a folder for images
+root/wwwroot/right click/new folder/ products
+
+-----------------------------------------
+
+12- create ProductsController
+
+root/controllers folder/ right click/ add / controller/empty controller/name "ProductsController"
+
+using Microsoft.AspNetCore.Mvc;
+
+namespace BestStoreMVC.Controllers
+{
+    public class ProductsController : Controller
+    {
+        public IActionResult Index()
+        {
+            return View();
+        }
+    }
+}
+-------
+
+13 - now add View for Index , for it inside the method 
+ public IActionResult Index()
+        { // for example right click here
+            return View();
+        }
+
+right click/ Add View/ Razor View / add / name = Index.cshtml
+
+now we can see in root/Views/ a new folder by the name of Products created that contains Index.cshtml
+
+-------------------------
+
+14 - now here in the controller:
+  public IActionResult Index()
+        {
+// here
+            return View();
+        }
+
+we need to read the list of products in DB and pass it to index view to show the list.
+
+then the controller will be :
+
+using BestStoreMVC.Services;
+using Microsoft.AspNetCore.Mvc;
+
+namespace BestStoreMVC.Controllers
+{
+    public class ProductsController : Controller
+    {
+        private readonly ApplicationDbContext context;
+        public ProductsController(ApplicationDbContext context)
+        {
+            this.context = context;
+        }
+        public IActionResult Index()
+        {
+          //  var products = context.Products.ToList();
+            var products = context.Products.OrderByDescending(p => p.Id).ToList(); // to show descending order
+
+            return View(products);
+        }
+    }
+}
+--------------------------------------
+15- now goto Index.cshtml and create our view:
+
+@model List<Product>
+@{
+}
+
+<h2 class="text-center mb-5">List of Products</h2>
+
+<div class="row mb-5">
+
+	<div class="col">
+		<a class="btn btn-primary" asp-controller="Products" asp-action="Create">New Product</a>
+	</div>
+	<div class="col">
+
+	</div>
+
+</div>
+
+<table class="table">
+	<thead>
+		<tr>
+			<th>ID</th>
+			<th>Name</th>
+			<th>Brand</th>
+			<th>Category</th>
+			<th>Price</th>
+			<th>Image</th>
+			<th>Created At</th>
+			<th>Action</th>
+		</tr>
+	</thead>
+
+	<tbody>
+		@foreach (var product in Model)
+		{
+          <tr>
+				<td>@product.Id</td>
+				<td>@product.Name</td>
+				<td>@product.Brand</td>
+				<td>@product.Category</td>
+				<td>@(product.Price)$</td>
+				<td><img src="/products/@product.ImageFileName" width="100" /></td>
+				<td>@product.CreateAt.ToString("MM/dd/yyyy")</td>
+				<td style="white-space:nowrap">
+					<a class="btn btn-primary btn-sm" asp-controller="Products" asp-action="Edit"
+					    asp-route-id="@product.Id">Edit</a>
+
+					<a class="btn btn-danger btn-sm" asp-controller="Products" asp-action="Delete"
+                                            asp-route-id="@product.Id" onclick="return confirm('Are you sure?')">Delete</a>
+				</td>
+
+			</tr>
+       	 
+		}
+	</tbody>
+</table>
+-------------------------------------------
+ 16- now we want to add Products in navbar :
+
+root/Views/Shared/_Layout.cshtml/
+
+and add below lines :
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Products" asp-action="Index">Products</a>
+                        </li>
+now save the project and run :
+now we can see nav bar will be like it : Home Products Privacy
+
+then the full cod will be :
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - BestStoreMVC</title>
+    <script type="importmap"></script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/BestStoreMVC.styles.css" asp-append-version="true" />
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+            <div class="container-fluid">
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">BestStoreMVC</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Products" asp-action="Index">Products</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            &copy; 2024 - BestStoreMVC - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+        </div>
+    </footer>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
+---------------------------------------------
+
+17 - create new model ProductDto  (we used this model for update)
+ root/ models/add/class/ ProductDto
+
+using System.ComponentModel.DataAnnotations;
+
+namespace BestStoreMVC.Models
+{
+    public class ProductDto
+    {
+     
+        [Required ,MaxLength(100)]
+        public string Name { get; set; } = "";
+        [Required ,MaxLength(100)]
+        public string Brand { get; set; } = "";
+        [Required, MaxLength(100)]
+        public string Category { get; set; } = "";
+        [Required]
+        public decimal Price { get; set; }
+        [Required]
+        public string Description { get; set; } = "";  
+        public IFormFile? ImageFile { get; set; }
+    }
+}
+----------------------------
+
+18 - goto controller and write the action codes for Create (we had a button "Create" in Index.cshtml)
+
+ public IActionResult Create()
+ {
+     // right click here and add view for Create
+     return View();
+ }
+
+@model ProductDto
+@{
+}
+ 
+<div class="row">
+	<div class="col-md-8 mx-auto rounded border p-3">
+		<h2 class="text-center mb-5">New Product</h2>
+		<form method="post" enctype="multipart/form-data">
+			<div class="row mb-3">
+				<label class="col-sm-4 col-form-label">Name</label>
+				<div class="col-sm-8">
+					<input class="form-control" asp-for="Name" />
+					<span asp-validation-for="Name" class="text-danger"></span>
+				</div>
+			</div>
+
+			<div class="row mb-3">
+				<label class="col-sm-4 col-form-label">Brand</label>
+				<div class="col-sm-8">
+					<input class="form-control" asp-for="Brand" />
+					<span asp-validation-for="Brand" class="text-danger"></span>
+				</div>
+			</div>
+
+			<div class="row mb-3">
+				<label class="col-sm-4 col-form-label">Category</label>
+				<div class="col-sm-8">
+					<select class="form-select" asp-for="Category">
+						<option value="Other">Other</option>
+						<option value="Phones">Phones</option>
+						<option value="Computers">Computers</option>
+						<option value="Accessories">Accessories</option>
+						<option value="Printers">Printers</option>
+						<option value="Cameras">Cameras</option>
+					</select>
+				</div>
+			</div>
+
+			<div class="row mb-3">
+				<label class="col-sm-4 col-form-label">Price</label>
+				<div class="col-sm-8">
+					<input class="form-control" asp-for="Price" />
+					<span asp-validation-for="Price" class="text-danger"></span>
+				</div>
+			</div>
+
+			<div class="row mb-3">
+				<label class="col-sm-4 col-form-label">Description</label>
+				<div class="col-sm-8">
+					<textarea class="form-control" asp-for="Description"></textarea>
+					<span asp-validation-for="Description" class="text-danger"></span>
+				</div>
+			</div>
+
+			<div class="row mb-3"> 
+				<label class="col-sm-4 col-form-label">Image</label>
+				<div class="col-sm-8">
+					<input class="form-control" asp-for="ImageFile" />
+					<span asp-validation-for="ImageFile" class="text-danger"></span>
+				</div>
+			</div> 
+
+			<div class="row">
+				<div class="offset-sm-4 col-sm-4 d-grid">
+					<button type="submit" class="btn btn-primary">Submit</button>
+				</div>
+				<div class="col-sm-4 d-grid">
+				<a class="btn btn-outline-primary" asp-controller="Products" asp-action="Index" role="button">
+					Cancel
+				</a>
+				</div>
+			</div>
+
+		</form>
+	</div>
+</div>
+-------------------------------------------
+
+19 - create action for submit request for create.cshtml
+
+@model ProductDto  // this received from controller
+@{
+}
+ 
+<div class="row">
+	<div class="col-md-8 mx-auto rounded border p-3">
+		<h2 class="text-center mb-5">New Product</h2>
+		<form method="post" enctype="multipart/form-data">
+			<div class="row mb-3">
+				<label class="col-sm-4 col-form-label">Name</label>
+				<div class="col-sm-8">
+					<input class="form-control" asp-for="Name" />
+					<span asp-validation-for="Name" class="text-danger"></span>
+				</div>
+			</div>
+
+			<div class="row mb-3">
+				<label class="col-sm-4 col-form-label">Brand</label>
+				<div class="col-sm-8">
+					<input class="form-control" asp-for="Brand" />
+					<span asp-validation-for="Brand" class="text-danger"></span>
+				</div>
+			</div>
+
+			<div class="row mb-3">
+				<label class="col-sm-4 col-form-label">Category</label>
+				<div class="col-sm-8">
+					<select class="form-select" asp-for="Category">
+						<option value="Other">Other</option>
+						<option value="Phones">Phones</option>
+						<option value="Computers">Computers</option>
+						<option value="Accessories">Accessories</option>
+						<option value="Printers">Printers</option>
+						<option value="Cameras">Cameras</option>
+					</select>
+				</div>
+			</div>
+
+			<div class="row mb-3">
+				<label class="col-sm-4 col-form-label">Price</label>
+				<div class="col-sm-8">
+					<input class="form-control" asp-for="Price" />
+					<span asp-validation-for="Price" class="text-danger"></span>
+				</div>
+			</div>
+
+			<div class="row mb-3">
+				<label class="col-sm-4 col-form-label">Description</label>
+				<div class="col-sm-8">
+					<textarea class="form-control" asp-for="Description"></textarea>
+					<span asp-validation-for="Description" class="text-danger"></span>
+				</div>
+			</div>
+
+			<div class="row mb-3"> 
+				<label class="col-sm-4 col-form-label">Image</label>
+				<div class="col-sm-8">
+					<input class="form-control" asp-for="ImageFile" />
+					<span asp-validation-for="ImageFile" class="text-danger"></span>
+				</div>
+			</div> 
+
+			<div class="row">
+				<div class="offset-sm-4 col-sm-4 d-grid">
+					<button type="submit" class="btn btn-primary">Submit</button>
+				</div>
+				<div class="col-sm-4 d-grid">
+				<a class="btn btn-outline-primary" asp-controller="Products" asp-action="Index" role="button">
+					Cancel
+				</a>
+				</div>
+			</div>
+
+		</form>
+	</div>
+</div>
+---------------------------------------
+20- now create action for create
+
+goto controller and add environment for access to image folder 
+
+
+
+ private readonly IWebHostEnvironment environment; 
+
+ public ProductsController(ApplicationDbContext context, IWebHostEnvironment environment)
+ {
+     this.context = context;
+     this.environment = environment;// for access to wwwroot/products folder in root of project
+ }
+
+and 
+
+ [HttpPost]
+ public IActionResult Create(ProductDto productDto)
+ {
+     if (productDto.ImageFile == null) 
+     {
+         ModelState.AddModelError("ImageFile", "the image file is required");
+     }
+
+     if (!ModelState.IsValid) {
+         return View(productDto);
+     }
+
+     //save the image file
+     string newFileName = DateTime.Now.ToString("yyyyMMddHHmmssfff");
+     newFileName += Path.GetExtension(productDto.ImageFile!.FileName);
+
+     string imageFullPath = environment.WebRootPath + "/products/" + newFileName;
+     using(var stream = System.IO.File.Create(imageFullPath))
+     {
+         productDto.ImageFile.CopyTo(stream);
+     }
+
+     Product product = new Product()
+     {
+         Name = productDto.Name,
+         Brand = productDto.Brand,
+         Category = productDto.Category,
+         Description = productDto.Description,
+         ImageFileName = newFileName,
+         CreateAt = DateTime.Now,
+     };
+
+     context.Products.Add(product);
+     context.SaveChanges();
+
+     return RedirectToAction("Index","Products"); // Products is the controller name
+
+
+ }
+------------------------
+
+then till now the controller will be :
+
+using BestStoreMVC.Models;
+using BestStoreMVC.Services;
+using Microsoft.AspNetCore.Mvc;
+
+namespace BestStoreMVC.Controllers
+{
+    public class ProductsController : Controller
+    {
+        private readonly ApplicationDbContext context;
+        private readonly IWebHostEnvironment environment; 
+
+        public ProductsController(ApplicationDbContext context, IWebHostEnvironment environment)
+        {
+            this.context = context;
+            this.environment = environment;// for access to wwwroot/products folder in root of project
+        }
+        public IActionResult Index()
+        {
+            var products = context.Products.OrderByDescending(p => p.Id).ToList();
+
+            return View(products);
+        }
+
+        public IActionResult Create()
+        {
+            
+            return View();
+        }
+
+        [HttpPost]
+        public IActionResult Create(ProductDto productDto)
+        {
+            if (productDto.ImageFile == null) 
+            {
+                ModelState.AddModelError("ImageFile", "the image file is required");
+            }
+
+            if (!ModelState.IsValid) {
+                return View(productDto);
+            }
+
+            //save the image file
+            string newFileName = DateTime.Now.ToString("yyyyMMddHHmmssfff");
+            newFileName += Path.GetExtension(productDto.ImageFile!.FileName);
+
+            string imageFullPath = environment.WebRootPath + "/products/" + newFileName;
+            using(var stream = System.IO.File.Create(imageFullPath))
+            {
+                productDto.ImageFile.CopyTo(stream);
+            }
+
+            Product product = new Product()
+            {
+                Name = productDto.Name,
+                Brand = productDto.Brand,
+                Category = productDto.Category,
+                Description = productDto.Description,
+                ImageFileName = newFileName,
+                CreateAt = DateTime.Now,
+            };
+
+            context.Products.Add(product);
+            context.SaveChanges();
+
+            return RedirectToAction("Index","Products"); // Products is the controller name
+
+
+        }
+    }
+}
+
+now test the project , and create a new item and we can see new item added to our list
+now in the right narrow column click on serverExplorer/tables/products/right click/ show table data 
+we can see our data registerd in database
+-------------------------------
+
+21 - add View for "Edit"in controller
+
+fill the related ProductDto model and pass it to Edit view;
+
+
+  public IActionResult Edit(int id)
+   {
+       var product = context.Products.Find(id);
+       if (product == null) 
+       {
+           return RedirectToAction("Index", "Products");
+       }
+
+       // create productDto from product(database)
+       var productDto = new ProductDto()
+       {
+           Name = product.Name,
+           Brand = product.Brand,
+           Category = product.Category,
+           Price = product.Price,
+           Description = product.Description,
+       };
+
+// by writing below lines we can directly use them in Edit.chtml
+       ViewData["ProductId"] = product.Id;
+       ViewData["ImageFileName"] = product.ImageFileName;
+       ViewData["CreatedAt"] = product.CreateAt.ToString("MM/dd/yyyy");
+
+       return View(productDto);
+   }
+
+----------------------
+
+22- now right click inside Edit method  and crete view for Edit name is "Edit.cshtml":
+
+@model ProductDto
+@{
+}
+ 
+<div class="row">
+	<div class="col-md-8 mx-auto rounded border p-3">
+		<h2 class="text-center mb-5">Edit Product</h2>
+
+		<form method="post" enctype="multipart/form-data">
+
+			<div class="row mb-3">
+				<label class="col-sm-4 col-form-label">Id</label>
+				<div class="col-sm-8">
+					<input class="form-control-plaintext" readonly value="@ViewData["ProductId"]" />
+				</div>
+			</div>
+
+			<div class="row mb-3">
+				<label class="col-sm-4 col-form-label">Name</label>
+				<div class="col-sm-8">
+					<input class="form-control" asp-for="Name" />
+					<span asp-validation-for="Name" class="text-danger"></span>
+				</div>
+			</div>
+
+			<div class="row mb-3">
+				<label class="col-sm-4 col-form-label">Brand</label>
+				<div class="col-sm-8">
+					<input class="form-control" asp-for="Brand" />
+					<span asp-validation-for="Brand" class="text-danger"></span>
+				</div>
+			</div>
+
+			<div class="row mb-3">
+				<label class="col-sm-4 col-form-label">Category</label>
+				<div class="col-sm-8">
+					<select class="form-select" asp-for="Category">
+						<option value="Other">Other</option>
+						<option value="Phones">Phones</option>
+						<option value="Computers">Computers</option>
+						<option value="Accessories">Accessories</option>
+						<option value="Printers">Printers</option>
+						<option value="Cameras">Cameras</option>
+					</select>
+				</div>
+			</div>
+
+			<div class="row mb-3">
+				<label class="col-sm-4 col-form-label">Price</label>
+				<div class="col-sm-8">
+					<input class="form-control" asp-for="Price" />
+					<span asp-validation-for="Price" class="text-danger"></span>
+				</div>
+			</div>
+
+			<div class="row mb-3">
+				<label class="col-sm-4 col-form-label">Description</label>
+				<div class="col-sm-8">
+					<textarea class="form-control" asp-for="Description"></textarea>
+					<span asp-validation-for="Description" class="text-danger"></span>
+				</div>
+			</div>
+
+                       <div class="row mb-3">
+				<div class="offset-sm-4 col-sm-8">
+					<img src="/products/@ViewData["ImageFileName"]" width="150"/>
+				</div>
+			</div>
+
+			<div class="row mb-3"> 
+				<label class="col-sm-4 col-form-label">Image</label>
+				<div class="col-sm-8">
+					<input class="form-control" asp-for="ImageFile" />
+					<span asp-validation-for="ImageFile" class="text-danger"></span>
+				</div>
+			</div>
+
+			<div class="row mb-3">
+				<label class="col-sm-4 col-form-label">Created At</label>
+				<div class="col-sm-8">
+					<input class="form-control-plaintext" readonly value="@ViewData["CreatedAt"]" />			
+				</div>
+			</div>
+
+			<div class="row">
+				<div class="offset-sm-4 col-sm-4 d-grid">
+					<button type="submit" class="btn btn-primary">Submit</button>
+				</div>
+				<div class="col-sm-4 d-grid">
+				<a class="btn btn-outline-primary" asp-controller="Products" asp-action="Index" role="button">
+					Cancel
+				</a>
+				</div>
+			</div>
+
+		</form>
+	</div>
+</div>
+----------------------------------
+
+23- now add action in controller for Edit:
+
+ [HttpPost]
+ public IActionResult Edit(int id, ProductDto productDto)
+ {
+     var product = context.Products.Find(id);
+     if (product == null) 
+     {
+         return RedirectToAction("Index", "Products");
+     }
+
+     if (!ModelState.IsValid)
+     {
+         ViewData["ProductId"] = product.Id;
+         ViewData["ImageFileName"] = product.ImageFileName;
+         ViewData["CreatedAt"] = product.CreateAt.ToString("MM/dd/yyyy");
+
+         return View(productDto);
+     }
+
+
+     // update the image file if we have a new image
+     string newFileName = product.ImageFileName;
+     if(productDto.ImageFile != null)
+     {
+         newFileName = DateTime.Now.ToString("yyyyMMddHHmmssfff");
+         newFileName += Path.GetExtension(productDto.ImageFile.FileName);
+
+         string imageFullPath = environment.WebRootPath + "/products/" + newFileName;
+         using (var stream = System.IO.File.Create(imageFullPath))
+         {
+             productDto.ImageFile.CopyTo(stream);
+         }
+
+         // delete old image
+         string oldImageFullPath = environment.WebRootPath + "/products/" + product.ImageFileName;
+         System.IO.File.Delete(oldImageFullPath);
+     }
+
+
+     product.Name = productDto.Name;
+     product.Brand = productDto.Brand;
+     product.Category = productDto.Category;
+     product.Price = productDto.Price;
+     product.Description = productDto.Description;
+     product.ImageFileName = newFileName;
+
+     context.SaveChanges();
+
+     return RedirectToAction("Index", "Products");
+
+ }
+---------------------------------------------------------
+ 24 - add DElete action to controller :
+
+
+        public IActionResult Delete(int id)
+        {
+            var product = context.Products.Find(id);
+            if (product == null) 
+            { 
+                return View("Index", "Products");
+            }
+
+            string imageFullPath = environment.WebRootPath + "/products/" + product.ImageFileName;
+            System.IO.File.Delete(imageFullPath);
+
+            context.Products.Remove(product);
+            context.SaveChanges(true);
+
+            return RedirectToAction("Index", "Products");
+        }
+
+
+finish
